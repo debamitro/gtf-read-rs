@@ -1,12 +1,13 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Result;
+use std::io::{BufRead, BufReader};
 use std::vec::Vec;
 
 #[derive(Debug)]
-struct Exon {
-    start_offset: i32,
-    end_offset: i32
+pub struct Exon {
+    pub start_offset: i32,
+    pub end_offset: i32,
 }
 
 struct GtfLineParts {
@@ -14,7 +15,7 @@ struct GtfLineParts {
     start_offset: i32,
     end_offset: i32,
     gene_name: String,
-    transcript_id: String
+    transcript_id: String,
 }
 
 fn get_gtf_line_parts(line: &mut String) -> GtfLineParts {
@@ -24,7 +25,7 @@ fn get_gtf_line_parts(line: &mut String) -> GtfLineParts {
         start_offset: 0,
         end_offset: 0,
         gene_name: String::from(""),
-        transcript_id: String::from("")
+        transcript_id: String::from(""),
     };
 
     if let Some(kind) = parts.nth(2) {
@@ -55,8 +56,7 @@ fn get_gtf_line_parts(line: &mut String) -> GtfLineParts {
                         };
                         if key == "gene_name" {
                             gtf_line_parts.gene_name = keyvalue.next().unwrap().to_string();
-                        }
-                        else if key == "transcript_id" {
+                        } else if key == "transcript_id" {
                             gtf_line_parts.transcript_id = keyvalue.next().unwrap().to_string();
                         }
                     }
@@ -68,45 +68,43 @@ fn get_gtf_line_parts(line: &mut String) -> GtfLineParts {
     gtf_line_parts
 }
 
-pub fn read_gtf_file (file_name: &str, gene_name: &str) {
-    if let Ok(of) = File::open(file_name) {
-        let mut reader = BufReader::new(of);
-        let mut line : String = String::new();
-        let mut transcripts = HashMap::<String, Vec::<Exon>>::new();
-        while let Ok(chars_read) = reader.read_line(&mut line) {
-            if chars_read > 0 {
-                let gtf_parts = get_gtf_line_parts(&mut line);
-                if gtf_parts.kind == "exon" && gtf_parts.gene_name == gene_name {
-                    let exon = Exon{
-                        start_offset: gtf_parts.start_offset,
-                        end_offset: gtf_parts.end_offset
-                    };
-                    if let Some(sequence) = transcripts.get_mut(&gtf_parts.transcript_id) {
-                        sequence.push(exon);
-                    }
-                    else {
-                        let mut sequence = Vec::<Exon>::new();
-                        sequence.push(exon);
-                        transcripts.insert(gtf_parts.transcript_id,
-                                           sequence);
-                    }
+fn read_gtf_file(file: File, gene_name: &str, transcripts: &mut HashMap<String, Vec<Exon>>) {
+    let mut reader = BufReader::<File>::new(file);
+    let mut line: String = String::new();
+    while let Ok(chars_read) = reader.read_line(&mut line) {
+        if chars_read > 0 {
+            let gtf_parts = get_gtf_line_parts(&mut line);
+            if gtf_parts.kind == "exon" && gtf_parts.gene_name == gene_name {
+                let exon = Exon {
+                    start_offset: gtf_parts.start_offset,
+                    end_offset: gtf_parts.end_offset,
+                };
+                if let Some(sequence) = transcripts.get_mut(&gtf_parts.transcript_id) {
+                    sequence.push(exon);
+                } else {
+                    let mut sequence = Vec::<Exon>::new();
+                    sequence.push(exon);
+                    transcripts.insert(gtf_parts.transcript_id, sequence);
                 }
-                line.clear();
             }
-            else {
-                break;
-            }
+            line.clear();
+        } else {
+            break;
         }
+    }
+}
 
-        println!("transcripts = {{");
-        for (transcript_id, sequence) in transcripts.iter() {
-            println!(" {}: [", transcript_id);
-            for exon in sequence {
-                println!("  ({},{}),",exon.start_offset,exon.end_offset);
-            }
-            println!(" ],");
+pub fn get_gene_transcripts(
+    file_name: &str,
+    gene_name: &str,
+) -> Result<HashMap<String, Vec<Exon>>> {
+    match File::open(file_name) {
+        Ok(of) => {
+            let mut transcripts = HashMap::<String, Vec<Exon>>::new();
+            read_gtf_file(of, gene_name, &mut transcripts);
+            Ok(transcripts)
         }
-        println!("}}");
+        Err(e) => Err(e),
     }
 }
 
