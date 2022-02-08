@@ -18,6 +18,14 @@ struct GtfLineParts {
     transcript_id: String,
 }
 
+fn get_unquoted_string(possibly_quoted: &str) -> String {
+    possibly_quoted
+        .to_string()
+        .trim_start_matches("\"")
+        .trim_end_matches("\"")
+        .to_string()
+}
+
 fn get_gtf_line_parts(line: &mut String) -> Option<GtfLineParts> {
     let mut parts = line.split("\t");
     let mut gtf_line_parts = GtfLineParts {
@@ -53,9 +61,9 @@ fn get_gtf_line_parts(line: &mut String) -> Option<GtfLineParts> {
             }
         };
         if key == "gene_name" {
-            gtf_line_parts.gene_name = keyvalue.next().unwrap().to_string();
+            gtf_line_parts.gene_name = get_unquoted_string(keyvalue.next().unwrap());
         } else if key == "transcript_id" {
-            gtf_line_parts.transcript_id = keyvalue.next().unwrap().to_string();
+            gtf_line_parts.transcript_id = get_unquoted_string(keyvalue.next().unwrap());
         }
     }
 

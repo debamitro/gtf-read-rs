@@ -9,8 +9,6 @@ pub fn get_gene_transcripts(
 ) -> Result<HashMap<String, Vec<Exon>>>
 ```
 
-There is a quirk in the 'gene_name' parameter - it has to be surrounded in '"' quotes
-
 ## Examples
 
 ### Transcripts to Python dictionary
