@@ -43,17 +43,18 @@ impl Iterator for GtfLineAttributes {
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let kv = self.attribute_string.split(";").nth(self.pos)?;
+        let (kv, _) = self.attribute_string.get(self.pos..)?.split_once(';')?;
+        self.pos += kv.len() + 1;
+
         let mut keyvalue = kv.split_whitespace();
         let key = keyvalue.next()?;
         let value = keyvalue.next()?;
-        self.pos += 1;
         Some((key.to_string(), value.to_string()))
     }
 }
 
 fn get_gtf_line_parts(line: &mut String) -> Option<GtfLineParts> {
-    let mut parts = line.trim_end_matches("\n").split("\t");
+    let mut parts = line.trim_end_matches('\n').split('\t');
     let mut gtf_line_parts = GtfLineParts {
         kind: String::from(""),
         start_offset: 0,
