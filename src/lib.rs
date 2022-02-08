@@ -18,16 +18,42 @@ struct GtfLineParts {
     transcript_id: String,
 }
 
-fn get_unquoted_string(possibly_quoted: &str) -> String {
+fn get_unquoted_string(possibly_quoted: String) -> String {
     possibly_quoted
-        .to_string()
         .trim_start_matches("\"")
         .trim_end_matches("\"")
         .to_string()
 }
 
+struct GtfLineAttributes {
+    attribute_string: String,
+    pos: usize,
+}
+
+impl GtfLineAttributes {
+    fn new(attribute_string: String) -> GtfLineAttributes {
+        GtfLineAttributes {
+            attribute_string: attribute_string,
+            pos: 0,
+        }
+    }
+}
+
+impl Iterator for GtfLineAttributes {
+    type Item = (String, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let kv = self.attribute_string.split(";").nth(self.pos)?;
+        let mut keyvalue = kv.split_whitespace();
+        let key = keyvalue.next()?;
+        let value = keyvalue.next()?;
+        self.pos += 1;
+        Some((key.to_string(), value.to_string()))
+    }
+}
+
 fn get_gtf_line_parts(line: &mut String) -> Option<GtfLineParts> {
-    let mut parts = line.split("\t");
+    let mut parts = line.trim_end_matches("\n").split("\t");
     let mut gtf_line_parts = GtfLineParts {
         kind: String::from(""),
         start_offset: 0,
@@ -47,23 +73,14 @@ fn get_gtf_line_parts(line: &mut String) -> Option<GtfLineParts> {
     let mut attribute_string = String::new();
     for attribute in parts {
         attribute_string.push_str(attribute);
-        attribute_string.push_str("\t");
+        attribute_string.push_str(" ");
     }
 
-    let kvpairs = attribute_string.split(";");
-    for kv in kvpairs {
-        let mut keyvalue = kv.split(" ");
-        let key = loop {
-            if let Some(key) = keyvalue.next() {
-                if key != "" {
-                    break key;
-                }
-            }
-        };
+    for (key, value) in GtfLineAttributes::new(attribute_string) {
         if key == "gene_name" {
-            gtf_line_parts.gene_name = get_unquoted_string(keyvalue.next().unwrap());
+            gtf_line_parts.gene_name = get_unquoted_string(value);
         } else if key == "transcript_id" {
-            gtf_line_parts.transcript_id = get_unquoted_string(keyvalue.next().unwrap());
+            gtf_line_parts.transcript_id = get_unquoted_string(value);
         }
     }
 
